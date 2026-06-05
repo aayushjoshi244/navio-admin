@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: #10142a;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.22), transparent 34rem),
+      radial-gradient(circle at top right, rgba(168, 85, 247, 0.16), transparent 30rem),
+      #10142a;
+    color: #e5e7eb;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .admin-shell table {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px;
+    background: #171b38;
+    color: #dbeafe;
+  }
+
+  .admin-shell thead tr,
+  .admin-shell tr.bg-gray-100 {
+    background: #20264a !important;
+  }
+
+  .admin-shell th {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    padding: 12px 14px !important;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #93c5fd;
+  }
+
+  .admin-shell td {
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    padding: 12px 14px !important;
+    color: #d8def8;
+  }
+
+  .admin-shell tbody tr {
+    transition: background 160ms ease;
+  }
+
+  .admin-shell tbody tr:hover {
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea {
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    background: #f8fafc;
+    color: #0f172a;
+    outline: none;
+  }
+
+  .admin-shell input:focus,
+  .admin-shell select:focus,
+  .admin-shell textarea:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  }
+
+  .admin-shell main > div:not(.space-y-5) > h1 {
+    margin-bottom: 18px;
+    color: #ffffff;
+    font-weight: 900;
+  }
+
+  .admin-shell main > div:not(.space-y-5) {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(23, 27, 56, 0.86);
+    padding: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  }
+
+  .admin-shell .bg-white {
+    color: #0f172a;
+  }
+
+  .admin-shell .bg-gray-50 {
+    background: rgba(15, 23, 42, 0.28) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .admin-shell .text-gray-500,
+  .admin-shell .text-gray-600,
+  .admin-shell .text-gray-700 {
+    color: #94a3b8 !important;
+  }
+
+  .admin-shell .status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .admin-shell .status-approved {
+    background: rgba(34, 197, 94, 0.13);
+    color: #86efac;
+  }
+
+  .admin-shell .status-pending {
+    background: rgba(249, 115, 22, 0.14);
+    color: #fdba74;
+  }
+}
