@@ -3,9 +3,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    include: ['crypto-js'],
+  },
   build: {
-    rollupOptions: {
-      external: ['crypto-js'],   // add any other problematic modules here
+    commonjsOptions: {
+      transformMixedEsModules: true,
     },
   },
 });
