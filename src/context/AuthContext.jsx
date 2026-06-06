@@ -9,23 +9,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) fetchProfile(session.user);
-      else {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
+    let mounted = true;
+
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) {
+        if (session?.user) {
+          await fetchProfile(session.user);
+        } else {
+          setLoading(false);
+        }
+      }
+    };
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (mounted) {
+        if (session?.user) {
+          setLoading(true);
+          await fetchProfile(session.user);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
       }
     });
-    return () => listener?.subscription.unsubscribe();
-  }, []);
 
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) await fetchProfile(session.user);
-    else setLoading(false);
-  };
+    checkUser();
+
+    return () => {
+      mounted = false;
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const fetchProfile = async (authUser) => {
     const { data, error } = await supabase
@@ -33,6 +49,7 @@ export const AuthProvider = ({ children }) => {
       .select('*')
       .eq('id', authUser.id)
       .single();
+
     if (!error && data?.user_type === 'admin') {
       setUser(authUser);
       setProfile(data);
@@ -47,6 +64,7 @@ export const AuthProvider = ({ children }) => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setLoading(false);
   };
 
   return (
