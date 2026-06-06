@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import CryptoJS from "crypto-js";
 
 export default function Providers() {
   const [providers, setProviders] = useState([]);
@@ -44,10 +43,16 @@ export default function Providers() {
   const cloudinaryApiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
   const cloudinaryApiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
 
-  // ---------- Cloudinary deletion helper ----------
+  // ---------- Cloudinary deletion helper using Web Crypto API ----------
   const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
     const timestamp = Math.floor(Date.now() / 1000);
-    const signature = CryptoJS.SHA1(`public_id=${publicId}&timestamp=${timestamp}${cloudinaryApiSecret}`).toString();
+    const signatureString = `public_id=${publicId}&timestamp=${timestamp}${cloudinaryApiSecret}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(signatureString);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const signature = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
     const fd = new FormData();
     fd.append('public_id', publicId);
