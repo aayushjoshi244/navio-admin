@@ -844,122 +844,143 @@ export default function Providers() {
 
       {/* View Details Modal */}
       {viewModalOpen && selectedProvider && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Provider Details</h2>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-[#151936] text-slate-100 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/10 shadow-2xl shadow-black/40">
+            <div className="flex justify-between items-center mb-5 border-b border-white/5 pb-3">
+              <h2 className="text-lg font-black text-white uppercase tracking-wide">Provider Specifications</h2>
               <button
                 onClick={() => setViewModalOpen(false)}
-                className="text-2xl text-gray-500"
+                className="text-slate-400 hover:text-white transition text-lg font-bold"
               >
                 ✕
               </button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <strong>Business Name:</strong> {selectedProvider.business_name}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm border-b border-white/5 pb-5 mb-5">
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Business Name</span>
+                <span className="text-sm font-bold text-white mt-1 block">{selectedProvider.business_name || '-'}</span>
               </div>
-              <div>
-                <strong>Owner Name:</strong>{" "}
-                {selectedProvider.owner_name ||
-                  selectedProvider.profiles?.full_name ||
-                  "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Owner Name</span>
+                <span className="text-sm font-bold text-slate-200 mt-1 block">{selectedProvider.owner_name || selectedProvider.profiles?.full_name || 'N/A'}</span>
               </div>
-              <div>
-                <strong>Description:</strong>{" "}
-                {selectedProvider.description || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Description</span>
+                <span className="text-sm text-slate-300 mt-1 block leading-relaxed whitespace-pre-wrap">{selectedProvider.description || 'No description provided'}</span>
               </div>
-              <div>
-                <strong>Address:</strong> {selectedProvider.address || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Street Address</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.address || 'N/A'}</span>
               </div>
-              <div>
-                <strong>City:</strong> {selectedProvider.city || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">City</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.city || 'N/A'}</span>
               </div>
-              <div>
-                <strong>District:</strong> {selectedProvider.district || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">District</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.district || 'N/A'}</span>
               </div>
-              <div>
-                <strong>Province:</strong> {selectedProvider.province || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Province / Postal Code</span>
+                <span className="text-sm text-slate-200 mt-1 block">
+                  {selectedProvider.province || 'N/A'} {selectedProvider.postal_code ? `(${selectedProvider.postal_code})` : ''}
+                </span>
               </div>
-              <div>
-                <strong>Postal Code:</strong>{" "}
-                {selectedProvider.postal_code || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Categories</span>
+                <span className="text-sm text-slate-200 mt-1 block">
+                  {(selectedProvider.categories || [selectedProvider.category].filter(Boolean)).join(', ') || 'N/A'}
+                </span>
               </div>
-              <div>
-                <strong>Categories:</strong>{" "}
-                {(
-                  selectedProvider.categories ||
-                  [selectedProvider.category].filter(Boolean)
-                ).join(", ") || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Price Range / Status</span>
+                <span className="text-sm text-slate-200 mt-1 flex items-center gap-2">
+                  <span className="font-bold text-cyan-400">{selectedProvider.price_range || '$$'}</span>
+                  <span className="text-slate-650">•</span>
+                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${selectedProvider.is_approved ? 'bg-emerald-500/15 text-emerald-450 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-450 border border-amber-500/20'}`}>
+                    {selectedProvider.is_approved ? 'Approved' : 'Pending'}
+                  </span>
+                </span>
               </div>
-              <div>
-                <strong>Tags:</strong> {viewTags.join(", ") || "None"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Tags (Sub-Categories)</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {viewTags.map((t, i) => (
+                    <span key={i} className="bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded text-xs font-semibold text-cyan-400">{t}</span>
+                  ))}
+                  {!viewTags.length && <span className="text-xs text-slate-500 italic">No tags associated</span>}
+                </div>
               </div>
-              <div>
-                <strong>Contact Number:</strong>{" "}
-                {selectedProvider.contact_number || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Contact Number</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.contact_number || 'N/A'}</span>
               </div>
-              <div>
-                <strong>WhatsApp Number:</strong>{" "}
-                {selectedProvider.whatsapp_number || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">WhatsApp Number</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.whatsapp_number || 'N/A'}</span>
               </div>
-              <div>
-                <strong>Website:</strong> {selectedProvider.website || "N/A"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Website URL</span>
+                {selectedProvider.website ? (
+                  <a href={selectedProvider.website} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline mt-1 block break-all font-semibold">
+                    {selectedProvider.website}
+                  </a>
+                ) : (
+                  <span className="text-sm text-slate-500 mt-1 block">N/A</span>
+                )}
               </div>
-              <div>
-                <strong>Spoken Languages:</strong>{" "}
-                {selectedProvider.spoken_languages
-                  ?.map((l) => l.toUpperCase())
-                  .join(", ") || "None"}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Spoken Languages</span>
+                <span className="text-sm text-slate-200 mt-1 block">
+                  {selectedProvider.spoken_languages?.map((l) => l.toUpperCase()).join(', ') || 'None'}
+                </span>
               </div>
-              <div>
-                <strong>Price Range:</strong> {selectedProvider.price_range}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Working Hours</span>
+                <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.working_hours?.monday || 'Not set'}</span>
               </div>
-              <div>
-                <strong>Opening Hours:</strong>{" "}
-                {selectedProvider.working_hours?.monday || "Not set"}
-              </div>
-              <div>
-                <strong>Status:</strong>{" "}
-                {selectedProvider.is_approved ? "Approved" : "Pending"}
-              </div>
-              {selectedProvider.images?.length > 0 && (
-                <div>
-                  <strong>Images:</strong>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {selectedProvider.images.map((url, i) => (
+            </div>
+
+            {selectedProvider.images?.length > 0 && (
+              <div className="space-y-2">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Images ({selectedProvider.images.length})</span>
+                <div className="flex flex-wrap gap-3">
+                  {selectedProvider.images.map((url, i) => (
+                    <a href={url} target="_blank" rel="noopener noreferrer" key={i} className="block group">
                       <img
-                        key={i}
                         src={url}
                         alt={`img-${i}`}
-                        className="w-24 h-24 object-cover rounded"
+                        className="w-24 h-24 object-cover rounded-lg border border-white/10 shadow group-hover:border-blue-500 transition-all duration-200"
                       />
-                    ))}
-                  </div>
+                    </a>
+                  ))}
                 </div>
-              )}
-              {selectedProvider.videos?.length > 0 && (
-                <div>
-                  <strong>Videos:</strong>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {selectedProvider.videos.map((url, i) => (
-                      <video
-                        key={i}
-                        src={url}
-                        controls
-                        className="w-40 h-32 object-cover rounded"
-                      />
-                    ))}
-                  </div>
+              </div>
+            )}
+
+            {selectedProvider.videos?.length > 0 && (
+              <div className="space-y-2 mt-4">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Videos ({selectedProvider.videos.length})</span>
+                <div className="flex flex-wrap gap-3">
+                  {selectedProvider.videos.map((url, i) => (
+                    <video
+                      key={i}
+                      src={url}
+                      controls
+                      className="w-48 h-36 object-cover rounded-lg border border-white/10 shadow bg-black"
+                    />
+                  ))}
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end mt-6">
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6 border-t border-white/5 pt-4">
               <button
                 onClick={() => setViewModalOpen(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded"
+                className="px-5 py-2.5 bg-[#1e254e] hover:bg-[#252e60] text-slate-200 hover:text-white transition font-semibold rounded-lg text-sm border border-white/10"
               >
-                Close
+                Close Details
               </button>
             </div>
           </div>

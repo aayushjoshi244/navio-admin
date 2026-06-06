@@ -71,17 +71,19 @@
   .admin-shell input,
   .admin-shell select,
   .admin-shell textarea {
-    border-color: rgba(148, 163, 184, 0.28) !important;
-    background: #f8fafc;
-    color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: #171c3e !important;
+    color: #f1f5f9 !important;
     outline: none;
+    border-radius: 8px;
+    transition: all 0.2s ease;
   }
 
   .admin-shell input:focus,
   .admin-shell select:focus,
   .admin-shell textarea:focus {
-    border-color: #38bdf8 !important;
-    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
   }
 
   .admin-shell main > div:not(.space-y-5) > h1 {
@@ -131,4 +133,30 @@
     background: rgba(249, 115, 22, 0.14);
     color: #fdba74;
   }
+}
+
+/* Custom premium scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #10142a;
+}
+::-webkit-scrollbar-thumb {
+  background: #252d5e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
+
+/* Premium scale animations */
+.premium-hover-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  border-color: rgba(59, 130, 246, 0.2) !important;
 }
