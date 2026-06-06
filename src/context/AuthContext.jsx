@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -8,57 +8,39 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  let timeoutId = null;
+  const fetchProfile = async (authUser, showLoading = true) => {
+    console.log('🔍 Fetching profile for:', authUser.id);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
 
-  const clearTimeoutId = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
-    }
-  };
-
-  const fetchProfile = async (authUser) => {
-    console.log("🔍 Fetching profile for:", authUser.id);
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", authUser.id)
-        .single();
-
-      if (error) {
-        console.error("❌ Profile error:", error);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      console.log("✅ Profile data:", data);
-      if (data?.user_type === "admin") {
-        setUser(authUser);
-        setProfile(data);
-      } else {
-        console.warn("User is not admin");
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error("💥 Unexpected error:", err);
+    if (error) {
+      console.error('❌ Profile fetch error:', error);
       setUser(null);
       setProfile(null);
       setLoading(false);
+      return;
     }
+
+    console.log('✅ Profile data:', data);
+    if (data?.user_type === 'admin') {
+      setUser(authUser);
+      setProfile(data);
+    } else {
+      console.warn('⚠️ User is not admin');
+      setUser(null);
+      setProfile(null);
+    }
+    setLoading(false);
   };
 
   const checkSession = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       setLoading(true);
-      await fetchProfile(session.user);
+      await fetchProfile(session.user, true);
     } else {
       setLoading(false);
     }
@@ -67,36 +49,33 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Listen to tab visibility changes to re‑check session
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && mounted) {
-        checkSession();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (mounted) {
-          if (session?.user) {
-            setLoading(true);
-            await fetchProfile(session.user);
-          } else {
-            setUser(null);
-            setProfile(null);
-            setLoading(false);
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        let shouldShowLoading = false;
+        setUser((currUser) => {
+          if (!currUser || currUser.id !== session.user.id) {
+            shouldShowLoading = true;
           }
+          return currUser;
+        });
+
+        if (shouldShowLoading) {
+          setLoading(true);
         }
-      },
-    );
+        await fetchProfile(session.user, shouldShowLoading);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    });
 
     checkSession();
 
     return () => {
       mounted = false;
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       listener?.subscription.unsubscribe();
-      clearTimeoutId();
     };
   }, []);
 
