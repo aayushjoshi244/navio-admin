@@ -11,18 +11,31 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const fetchProfile = async (authUser) => {
+      console.log('🔍 fetchProfile called for user ID:', authUser.id);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+      console.log('📦 Profile data:', data);
+      console.log('⚠️ Profile error:', error);
       if (mounted) {
-        if (session?.user) {
-          await fetchProfile(session.user);
+        if (!error && data?.user_type === 'admin') {
+          console.log('✅ User is admin, setting user and profile');
+          setUser(authUser);
+          setProfile(data);
         } else {
-          setLoading(false);
+          console.log('❌ User is NOT admin or profile missing');
+          setUser(null);
+          setProfile(null);
         }
+        setLoading(false);
       }
     };
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('🔄 Auth state changed, event:', _event, 'session:', session?.user?.email);
       if (mounted) {
         if (session?.user) {
           setLoading(true);
@@ -35,6 +48,19 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔎 Existing session:', session?.user?.email);
+      if (mounted) {
+        if (session?.user) {
+          setLoading(true);
+          await fetchProfile(session.user);
+        } else {
+          setLoading(false);
+        }
+      }
+    };
+
     checkUser();
 
     return () => {
@@ -43,24 +69,8 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const fetchProfile = async (authUser) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
-
-    if (!error && data?.user_type === 'admin') {
-      setUser(authUser);
-      setProfile(data);
-    } else {
-      setUser(null);
-      setProfile(null);
-    }
-    setLoading(false);
-  };
-
   const signOut = async () => {
+    console.log('🚪 Signing out');
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

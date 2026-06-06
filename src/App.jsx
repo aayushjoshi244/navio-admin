@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth();
+  console.log('🛡️ ProtectedRoute: loading=', loading, 'user=', user?.email, 'profile=', profile?.user_type);
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#10142a] text-slate-200">
@@ -16,7 +17,11 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-  if (!user || profile?.user_type !== 'admin') return <Navigate to="/login" />;
+  if (!user || profile?.user_type !== 'admin') {
+    console.log('🚫 Redirecting to /login (no admin user)');
+    return <Navigate to="/login" />;
+  }
+  console.log('✅ Access granted to dashboard');
   return children;
 }
 
