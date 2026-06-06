@@ -8,32 +8,60 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  let timeoutId = null;
+
+  const clearTimeoutId = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
   const fetchProfile = async (authUser, showLoading = true) => {
     console.log('🔍 Fetching profile for:', authUser.id);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
+    clearTimeoutId();
+    
+    // Safety timeout to avoid infinite loading if connection hangs (30 seconds)
+    timeoutId = setTimeout(() => {
+      console.warn('Profile fetch timeout – forcing loading=false');
+      setLoading(false);
+    }, 30000);
 
-    if (error) {
-      console.error('❌ Profile fetch error:', error);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      clearTimeoutId();
+
+      if (error) {
+        console.error('❌ Profile fetch error:', error);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Profile data:', data);
+      if (data?.user_type === 'admin') {
+        setUser(authUser);
+        setProfile(data);
+      } else {
+        console.warn('⚠️ User is not admin');
+        setUser(null);
+        setProfile(null);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Unexpected error in fetchProfile:', err);
       setUser(null);
       setProfile(null);
       setLoading(false);
-      return;
+    } finally {
+      clearTimeoutId();
     }
-
-    console.log('✅ Profile data:', data);
-    if (data?.user_type === 'admin') {
-      setUser(authUser);
-      setProfile(data);
-    } else {
-      console.warn('⚠️ User is not admin');
-      setUser(null);
-      setProfile(null);
-    }
-    setLoading(false);
   };
 
   const checkSession = async () => {
@@ -76,10 +104,12 @@ export const AuthProvider = ({ children }) => {
     return () => {
       mounted = false;
       listener?.subscription.unsubscribe();
+      clearTimeoutId();
     };
   }, []);
 
   const signOut = async () => {
+    clearTimeoutId();
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
