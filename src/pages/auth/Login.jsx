@@ -16,7 +16,7 @@ export default function Login() {
 
     const signInPromise = supabase.auth.signInWithPassword({ email, password });
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Connection timeout. Please check if your network, VPN, or adblocker is blocking Supabase.')), 12000)
+      setTimeout(() => reject(new Error('Connection timeout. Please check if your network, VPN, or adblocker is blocking Supabase.')), 30000)
     );
 
     try {

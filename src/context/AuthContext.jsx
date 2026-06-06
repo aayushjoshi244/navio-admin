@@ -19,12 +19,11 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async (authUser) => {
     clearTimeoutId();
-    const abortController = new AbortController();
+    // Set a timeout to avoid infinite loading (30 seconds)
     timeoutId = setTimeout(() => {
-      console.warn("Profile fetch timeout – aborting request");
-      abortController.abort();
+      console.warn('Profile fetch timeout – forcing loading=false');
       setLoading(false);
-    }, 10000);
+    }, 30000);
 
     try {
       const { data, error } = await supabase
