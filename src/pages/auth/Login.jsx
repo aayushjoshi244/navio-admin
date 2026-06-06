@@ -14,14 +14,23 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
-    } else {
-      navigate('/');
-    }
+    const signInPromise = supabase.auth.signInWithPassword({ email, password });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Connection timeout. Please check if your network, VPN, or adblocker is blocking Supabase.')), 12000)
+    );
 
-    setLoading(false);
+    try {
+      const { error: signInError } = await Promise.race([signInPromise, timeoutPromise]);
+      if (signInError) {
+        setError(signInError.message);
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,7 +80,7 @@ export default function Login() {
             placeholder="admin@navio.app"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="mb-4 w-full rounded-lg border border-white/10 bg-slate-50 p-3 text-slate-950"
+            className="mb-4 w-full rounded-lg border border-white/10 bg-[#171c3e] p-3 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
             required
           />
 
@@ -81,7 +90,7 @@ export default function Login() {
             placeholder="Password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mb-5 w-full rounded-lg border border-white/10 bg-slate-50 p-3 text-slate-950"
+            className="mb-5 w-full rounded-lg border border-white/10 bg-[#171c3e] p-3 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
             required
           />
 
