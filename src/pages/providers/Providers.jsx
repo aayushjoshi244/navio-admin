@@ -44,28 +44,27 @@ export default function Providers() {
   const cloudinaryApiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
 
   // ---------- Cloudinary deletion helper using Web Crypto API ----------
-  const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
+  const deleteFromCloudinary = async (publicId, resourceType = "image") => {
     const timestamp = Math.floor(Date.now() / 1000);
     const signatureString = `public_id=${publicId}&timestamp=${timestamp}${cloudinaryApiSecret}`;
     const encoder = new TextEncoder();
-    const data = encoder.encode(signatureString);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const encodedData = encoder.encode(signatureString);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", encodedData);
     const signature = Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
     const fd = new FormData();
-    fd.append('public_id', publicId);
-    fd.append('timestamp', timestamp);
-    fd.append('signature', signature);
-    fd.append('api_key', cloudinaryApiKey);
-    const response = await fetch(url, { method: 'POST', body: fd });
-    const data = await response.json();
-    if (!response.ok || data.result !== 'ok') {
-      console.error(`Failed to delete ${publicId}:`, data);
+    fd.append("public_id", publicId);
+    fd.append("timestamp", timestamp);
+    fd.append("signature", signature);
+    fd.append("api_key", cloudinaryApiKey);
+    const response = await fetch(url, { method: "POST", body: fd });
+    const result = await response.json(); // renamed to avoid conflict
+    if (!response.ok || result.result !== "ok") {
+      console.error(`Failed to delete ${publicId}:`, result);
     }
   };
-
   // ---------- Data fetching ----------
   const fetchProviders = async () => {
     try {
@@ -91,9 +90,11 @@ export default function Providers() {
       .order("name");
     setAllCategories(categoriesData || []);
 
-    const { data: tagsData } = await supabase.from("tags").select("id, name, category_id");
+    const { data: tagsData } = await supabase
+      .from("tags")
+      .select("id, name, category_id");
     const grouped = {};
-    tagsData?.forEach(tag => {
+    tagsData?.forEach((tag) => {
       if (!grouped[tag.category_id]) grouped[tag.category_id] = [];
       grouped[tag.category_id].push(tag);
     });
@@ -201,7 +202,10 @@ export default function Providers() {
   const toggleLanguage = (lang) => {
     const current = formData.spoken_languages;
     if (current.includes(lang)) {
-      handleChange("spoken_languages", current.filter((l) => l !== lang));
+      handleChange(
+        "spoken_languages",
+        current.filter((l) => l !== lang),
+      );
     } else {
       handleChange("spoken_languages", [...current, lang]);
     }
@@ -210,7 +214,10 @@ export default function Providers() {
   const toggleTag = (tagId) => {
     const current = formData.tags;
     if (current.includes(tagId)) {
-      handleChange("tags", current.filter((id) => id !== tagId));
+      handleChange(
+        "tags",
+        current.filter((id) => id !== tagId),
+      );
     } else {
       handleChange("tags", [...current, tagId]);
     }
@@ -288,18 +295,22 @@ export default function Providers() {
     if (editingProvider) {
       const oldImages = editingProvider.images || [];
       const newImages = formData.images || [];
-      const removedImages = oldImages.filter(oldUrl => !newImages.includes(oldUrl));
+      const removedImages = oldImages.filter(
+        (oldUrl) => !newImages.includes(oldUrl),
+      );
       for (const url of removedImages) {
-        const publicId = url.split('/upload/')[1]?.split('.')[0];
-        if (publicId) await deleteFromCloudinary(publicId, 'image');
+        const publicId = url.split("/upload/")[1]?.split(".")[0];
+        if (publicId) await deleteFromCloudinary(publicId, "image");
       }
 
       const oldVideos = editingProvider.videos || [];
       const newVideos = formData.videos || [];
-      const removedVideos = oldVideos.filter(oldUrl => !newVideos.includes(oldUrl));
+      const removedVideos = oldVideos.filter(
+        (oldUrl) => !newVideos.includes(oldUrl),
+      );
       for (const url of removedVideos) {
-        const publicId = url.split('/upload/')[1]?.split('.')[0];
-        if (publicId) await deleteFromCloudinary(publicId, 'video');
+        const publicId = url.split("/upload/")[1]?.split(".")[0];
+        if (publicId) await deleteFromCloudinary(publicId, "video");
       }
     }
 
@@ -322,7 +333,7 @@ export default function Providers() {
       province: formData.province,
       postal_code: formData.postal_code,
       categories: formData.selectedCategories,
-      category: formData.selectedCategories[0] || '',
+      category: formData.selectedCategories[0] || "",
       spoken_languages: formData.spoken_languages,
       price_range: formData.price_range,
       tags: formData.tags,
@@ -342,7 +353,9 @@ export default function Providers() {
         .eq("id", editingProvider.id);
       error = updateError;
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         alert("You must be logged in to create a provider.");
         setSaving(false);
@@ -372,13 +385,13 @@ export default function Providers() {
         .eq("id", id)
         .single();
       if (provider) {
-        for (const url of (provider.images || [])) {
-          const publicId = url.split('/upload/')[1]?.split('.')[0];
-          if (publicId) await deleteFromCloudinary(publicId, 'image');
+        for (const url of provider.images || []) {
+          const publicId = url.split("/upload/")[1]?.split(".")[0];
+          if (publicId) await deleteFromCloudinary(publicId, "image");
         }
-        for (const url of (provider.videos || [])) {
-          const publicId = url.split('/upload/')[1]?.split('.')[0];
-          if (publicId) await deleteFromCloudinary(publicId, 'video');
+        for (const url of provider.videos || []) {
+          const publicId = url.split("/upload/")[1]?.split(".")[0];
+          if (publicId) await deleteFromCloudinary(publicId, "video");
         }
       }
       const { error } = await supabase.from("providers").delete().eq("id", id);
@@ -390,8 +403,8 @@ export default function Providers() {
   if (loading) return <div className="p-6">Loading providers...</div>;
 
   // Filtered categories for search
-  const filteredCategories = allCategories.filter(cat =>
-    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
+  const filteredCategories = allCategories.filter((cat) =>
+    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()),
   );
 
   return (
@@ -399,7 +412,9 @@ export default function Providers() {
       <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-2xl font-bold">Service Providers</h1>
-          <p className="mt-1 text-sm text-slate-400">Manage listings, approvals, categories, languages, and media.</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Manage listings, approvals, categories, languages, and media.
+          </p>
         </div>
         <button
           onClick={openCreateModal}
@@ -429,18 +444,37 @@ export default function Providers() {
               <tr key={provider.id}>
                 <td className="border p-2">{provider.business_name}</td>
                 <td className="border p-2">
-                  {provider.owner_name || provider.profiles?.full_name || "Unknown"}
+                  {provider.owner_name ||
+                    provider.profiles?.full_name ||
+                    "Unknown"}
                 </td>
                 <td className="border p-2">
-                  {(provider.categories || [provider.category].filter(Boolean)).join(", ") || "N/A"}
+                  {(
+                    provider.categories || [provider.category].filter(Boolean)
+                  ).join(", ") || "N/A"}
                 </td>
                 <td className="border p-2">
                   {provider.is_approved ? "✅ Approved" : "⏳ Pending"}
                 </td>
                 <td className="border p-2 space-x-2">
-                  <button onClick={() => openViewModal(provider)} className="text-green-600">View</button>
-                  <button onClick={() => openEditModal(provider)} className="text-blue-600">Edit</button>
-                  <button onClick={() => deleteProvider(provider.id)} className="text-red-600">Delete</button>
+                  <button
+                    onClick={() => openViewModal(provider)}
+                    className="text-green-600"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => openEditModal(provider)}
+                    className="text-blue-600"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteProvider(provider.id)}
+                    className="text-red-600"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -456,7 +490,10 @@ export default function Providers() {
               <h2 className="text-xl font-bold">
                 {editingProvider ? "Edit Provider" : "Add New Provider"}
               </h2>
-              <button onClick={() => setModalOpen(false)} className="text-2xl text-gray-500 hover:text-gray-700">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="text-2xl text-gray-500 hover:text-gray-700"
+              >
                 ✕
               </button>
             </div>
@@ -467,7 +504,9 @@ export default function Providers() {
                 <input
                   type="text"
                   value={formData.business_name}
-                  onChange={(e) => handleChange("business_name", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("business_name", e.target.value)
+                  }
                   className="w-full border p-2 rounded"
                   required
                 />
@@ -541,7 +580,9 @@ export default function Providers() {
 
               {/* Searchable Categories with Tags */}
               <div className="col-span-2">
-                <label className="block font-medium mb-2">Search Categories</label>
+                <label className="block font-medium mb-2">
+                  Search Categories
+                </label>
                 <input
                   type="text"
                   placeholder="Type to filter categories..."
@@ -550,11 +591,16 @@ export default function Providers() {
                   className="w-full border p-2 rounded mb-4"
                 />
                 <div className="category-picker max-h-96 overflow-y-auto border rounded p-2">
-                  {filteredCategories.map(cat => {
-                    const isSelected = formData.selectedCategories.includes(cat.name);
+                  {filteredCategories.map((cat) => {
+                    const isSelected = formData.selectedCategories.includes(
+                      cat.name,
+                    );
                     const tagsForThisCat = allTagsByCategory[cat.id] || [];
                     return (
-                      <div key={cat.id} className="category-option mb-3 border-b pb-3 last:border-b-0">
+                      <div
+                        key={cat.id}
+                        className="category-option mb-3 border-b pb-3 last:border-b-0"
+                      >
                         <label className="flex items-center gap-2 font-semibold">
                           <input
                             type="checkbox"
@@ -562,11 +608,26 @@ export default function Providers() {
                             onChange={() => {
                               if (isSelected) {
                                 // Remove category and its tags
-                                handleChange("selectedCategories", formData.selectedCategories.filter(c => c !== cat.name));
-                                const tagIdsToRemove = tagsForThisCat.map(t => t.id);
-                                handleChange("tags", formData.tags.filter(id => !tagIdsToRemove.includes(id)));
+                                handleChange(
+                                  "selectedCategories",
+                                  formData.selectedCategories.filter(
+                                    (c) => c !== cat.name,
+                                  ),
+                                );
+                                const tagIdsToRemove = tagsForThisCat.map(
+                                  (t) => t.id,
+                                );
+                                handleChange(
+                                  "tags",
+                                  formData.tags.filter(
+                                    (id) => !tagIdsToRemove.includes(id),
+                                  ),
+                                );
                               } else {
-                                handleChange("selectedCategories", [...formData.selectedCategories, cat.name]);
+                                handleChange("selectedCategories", [
+                                  ...formData.selectedCategories,
+                                  cat.name,
+                                ]);
                               }
                             }}
                           />
@@ -574,10 +635,15 @@ export default function Providers() {
                         </label>
                         {isSelected && tagsForThisCat.length > 0 && (
                           <div className="ml-6 mt-2">
-                            <div className="text-sm font-medium mb-1">Tags (sub‑categories)</div>
+                            <div className="text-sm font-medium mb-1">
+                              Tags (sub‑categories)
+                            </div>
                             <div className="flex flex-wrap gap-2">
-                              {tagsForThisCat.map(tag => (
-                                <label key={tag.id} className="tag-checkbox inline-flex items-center gap-2 text-sm">
+                              {tagsForThisCat.map((tag) => (
+                                <label
+                                  key={tag.id}
+                                  className="tag-checkbox inline-flex items-center gap-2 text-sm"
+                                >
                                   <input
                                     type="checkbox"
                                     checked={formData.tags.includes(tag.id)}
@@ -633,7 +699,9 @@ export default function Providers() {
                 <input
                   type="tel"
                   value={formData.contact_number}
-                  onChange={(e) => handleChange("contact_number", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("contact_number", e.target.value)
+                  }
                   className="w-full border p-2 rounded"
                 />
               </div>
@@ -642,7 +710,9 @@ export default function Providers() {
                 <input
                   type="tel"
                   value={formData.whatsapp_number}
-                  onChange={(e) => handleChange("whatsapp_number", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("whatsapp_number", e.target.value)
+                  }
                   className="w-full border p-2 rounded"
                 />
               </div>
@@ -657,10 +727,15 @@ export default function Providers() {
               </div>
               {/* Spoken Languages */}
               <div className="col-span-2">
-                <label className="block font-medium mb-2">Spoken Languages (select all that apply)</label>
+                <label className="block font-medium mb-2">
+                  Spoken Languages (select all that apply)
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {languageOptions.map((lang) => (
-                    <label key={lang} className="inline-flex items-center gap-2">
+                    <label
+                      key={lang}
+                      className="inline-flex items-center gap-2"
+                    >
                       <input
                         type="checkbox"
                         checked={formData.spoken_languages.includes(lang)}
@@ -673,7 +748,9 @@ export default function Providers() {
               </div>
               {/* Images Upload */}
               <div className="col-span-2">
-                <label className="block font-medium mb-2">Images (up to 5)</label>
+                <label className="block font-medium mb-2">
+                  Images (up to 5)
+                </label>
                 <input
                   type="file"
                   accept="image/*"
@@ -681,11 +758,17 @@ export default function Providers() {
                   onChange={handleImageUpload}
                   disabled={uploading}
                 />
-                {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
+                {uploading && (
+                  <p className="text-sm text-gray-500">Uploading...</p>
+                )}
                 <div className="flex flex-wrap gap-2 mt-2">
                   {formData.images.map((url, idx) => (
                     <div key={idx} className="relative">
-                      <img src={url} alt={`preview ${idx}`} className="w-20 h-20 object-cover rounded" />
+                      <img
+                        src={url}
+                        alt={`preview ${idx}`}
+                        className="w-20 h-20 object-cover rounded"
+                      />
                       <button
                         onClick={() => removeImage(idx)}
                         className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
@@ -698,7 +781,9 @@ export default function Providers() {
               </div>
               {/* Videos Upload */}
               <div className="col-span-2">
-                <label className="block font-medium mb-2">Videos (up to 2)</label>
+                <label className="block font-medium mb-2">
+                  Videos (up to 2)
+                </label>
                 <input
                   type="file"
                   accept="video/*"
@@ -709,7 +794,11 @@ export default function Providers() {
                 <div className="flex flex-wrap gap-2 mt-2">
                   {formData.videos.map((url, idx) => (
                     <div key={idx} className="relative">
-                      <video src={url} className="w-32 h-24 object-cover rounded" controls />
+                      <video
+                        src={url}
+                        className="w-32 h-24 object-cover rounded"
+                        controls
+                      />
                       <button
                         onClick={() => removeVideo(idx)}
                         className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
@@ -726,14 +815,21 @@ export default function Providers() {
                   <input
                     type="checkbox"
                     checked={formData.is_approved}
-                    onChange={(e) => handleChange("is_approved", e.target.checked)}
+                    onChange={(e) =>
+                      handleChange("is_approved", e.target.checked)
+                    }
                   />
                   <span>Approved (visible to users)</span>
                 </label>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 border rounded"
+              >
+                Cancel
+              </button>
               <button
                 onClick={saveProvider}
                 disabled={saving || uploading}
@@ -752,32 +848,92 @@ export default function Providers() {
           <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Provider Details</h2>
-              <button onClick={() => setViewModalOpen(false)} className="text-2xl text-gray-500">✕</button>
+              <button
+                onClick={() => setViewModalOpen(false)}
+                className="text-2xl text-gray-500"
+              >
+                ✕
+              </button>
             </div>
             <div className="space-y-3">
-              <div><strong>Business Name:</strong> {selectedProvider.business_name}</div>
-              <div><strong>Owner Name:</strong> {selectedProvider.owner_name || selectedProvider.profiles?.full_name || "N/A"}</div>
-              <div><strong>Description:</strong> {selectedProvider.description || "N/A"}</div>
-              <div><strong>Address:</strong> {selectedProvider.address || "N/A"}</div>
-              <div><strong>City:</strong> {selectedProvider.city || "N/A"}</div>
-              <div><strong>District:</strong> {selectedProvider.district || "N/A"}</div>
-              <div><strong>Province:</strong> {selectedProvider.province || "N/A"}</div>
-              <div><strong>Postal Code:</strong> {selectedProvider.postal_code || "N/A"}</div>
-              <div><strong>Categories:</strong> {(selectedProvider.categories || [selectedProvider.category].filter(Boolean)).join(", ") || "N/A"}</div>
-              <div><strong>Tags:</strong> {viewTags.join(", ") || "None"}</div>
-              <div><strong>Contact Number:</strong> {selectedProvider.contact_number || "N/A"}</div>
-              <div><strong>WhatsApp Number:</strong> {selectedProvider.whatsapp_number || "N/A"}</div>
-              <div><strong>Website:</strong> {selectedProvider.website || "N/A"}</div>
-              <div><strong>Spoken Languages:</strong> {selectedProvider.spoken_languages?.map(l => l.toUpperCase()).join(", ") || "None"}</div>
-              <div><strong>Price Range:</strong> {selectedProvider.price_range}</div>
-              <div><strong>Opening Hours:</strong> {selectedProvider.working_hours?.monday || "Not set"}</div>
-              <div><strong>Status:</strong> {selectedProvider.is_approved ? "Approved" : "Pending"}</div>
+              <div>
+                <strong>Business Name:</strong> {selectedProvider.business_name}
+              </div>
+              <div>
+                <strong>Owner Name:</strong>{" "}
+                {selectedProvider.owner_name ||
+                  selectedProvider.profiles?.full_name ||
+                  "N/A"}
+              </div>
+              <div>
+                <strong>Description:</strong>{" "}
+                {selectedProvider.description || "N/A"}
+              </div>
+              <div>
+                <strong>Address:</strong> {selectedProvider.address || "N/A"}
+              </div>
+              <div>
+                <strong>City:</strong> {selectedProvider.city || "N/A"}
+              </div>
+              <div>
+                <strong>District:</strong> {selectedProvider.district || "N/A"}
+              </div>
+              <div>
+                <strong>Province:</strong> {selectedProvider.province || "N/A"}
+              </div>
+              <div>
+                <strong>Postal Code:</strong>{" "}
+                {selectedProvider.postal_code || "N/A"}
+              </div>
+              <div>
+                <strong>Categories:</strong>{" "}
+                {(
+                  selectedProvider.categories ||
+                  [selectedProvider.category].filter(Boolean)
+                ).join(", ") || "N/A"}
+              </div>
+              <div>
+                <strong>Tags:</strong> {viewTags.join(", ") || "None"}
+              </div>
+              <div>
+                <strong>Contact Number:</strong>{" "}
+                {selectedProvider.contact_number || "N/A"}
+              </div>
+              <div>
+                <strong>WhatsApp Number:</strong>{" "}
+                {selectedProvider.whatsapp_number || "N/A"}
+              </div>
+              <div>
+                <strong>Website:</strong> {selectedProvider.website || "N/A"}
+              </div>
+              <div>
+                <strong>Spoken Languages:</strong>{" "}
+                {selectedProvider.spoken_languages
+                  ?.map((l) => l.toUpperCase())
+                  .join(", ") || "None"}
+              </div>
+              <div>
+                <strong>Price Range:</strong> {selectedProvider.price_range}
+              </div>
+              <div>
+                <strong>Opening Hours:</strong>{" "}
+                {selectedProvider.working_hours?.monday || "Not set"}
+              </div>
+              <div>
+                <strong>Status:</strong>{" "}
+                {selectedProvider.is_approved ? "Approved" : "Pending"}
+              </div>
               {selectedProvider.images?.length > 0 && (
                 <div>
                   <strong>Images:</strong>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {selectedProvider.images.map((url, i) => (
-                      <img key={i} src={url} alt={`img-${i}`} className="w-24 h-24 object-cover rounded" />
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`img-${i}`}
+                        className="w-24 h-24 object-cover rounded"
+                      />
                     ))}
                   </div>
                 </div>
@@ -787,14 +943,24 @@ export default function Providers() {
                   <strong>Videos:</strong>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {selectedProvider.videos.map((url, i) => (
-                      <video key={i} src={url} controls className="w-40 h-32 object-cover rounded" />
+                      <video
+                        key={i}
+                        src={url}
+                        controls
+                        className="w-40 h-32 object-cover rounded"
+                      />
                     ))}
                   </div>
                 </div>
               )}
             </div>
             <div className="flex justify-end mt-6">
-              <button onClick={() => setViewModalOpen(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Close</button>
+              <button
+                onClick={() => setViewModalOpen(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
