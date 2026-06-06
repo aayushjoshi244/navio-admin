@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext();
 
@@ -19,79 +19,89 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async (authUser) => {
     clearTimeoutId();
-    // Set a timeout to avoid infinite loading (10 seconds)
+    const abortController = new AbortController();
     timeoutId = setTimeout(() => {
-      console.warn('Profile fetch timeout – forcing loading=false');
+      console.warn("Profile fetch timeout – aborting request");
+      abortController.abort();
       setLoading(false);
     }, 10000);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", authUser.id)
+        .single();
 
-    clearTimeoutId();
+      clearTimeoutId();
 
-    if (error) {
-      console.error('Profile fetch error:', error);
-      if (error.code === 'PGRST116') {
-        // Profile row missing – create a default one (user, not admin)
-        console.log('No profile found, creating one for user', authUser.id);
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ id: authUser.id, user_type: 'user', full_name: '', phone: '' }]);
-        if (insertError) {
-          console.error('Failed to create profile:', insertError);
-          setUser(null);
-          setProfile(null);
+      if (error) {
+        console.error("Profile fetch error:", error);
+        if (error.code === "PGRST116") {
+          // Create missing profile
+          const { error: insertError } = await supabase
+            .from("profiles")
+            .insert([
+              { id: authUser.id, user_type: "user", full_name: "", phone: "" },
+            ]);
+          if (insertError) {
+            console.error("Failed to create profile:", insertError);
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          const { data: newData, error: refetchError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .single();
+          if (refetchError) {
+            console.error("Re-fetch error:", refetchError);
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+            return;
+          }
+          if (newData?.user_type === "admin") {
+            setUser(authUser);
+            setProfile(newData);
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
           setLoading(false);
           return;
-        }
-        // Re‑fetch the newly created profile
-        const { data: newData, error: refetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-        if (refetchError) {
-          console.error('Re-fetch error:', refetchError);
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-        if (newData?.user_type === 'admin') {
-          setUser(authUser);
-          setProfile(newData);
         } else {
           setUser(null);
           setProfile(null);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
+      }
+
+      if (data?.user_type === "admin") {
+        setUser(authUser);
+        setProfile(data);
       } else {
-        // Other error (e.g., RLS denied)
         setUser(null);
         setProfile(null);
-        setLoading(false);
-        return;
       }
-    }
-
-    // Success: check if user is admin
-    if (data?.user_type === 'admin') {
-      setUser(authUser);
-      setProfile(data);
-    } else {
+      setLoading(false);
+    } catch (err) {
+      console.error("Unexpected error in fetchProfile:", err);
       setUser(null);
       setProfile(null);
+      setLoading(false);
+    } finally {
+      clearTimeoutId();
     }
-    setLoading(false);
   };
 
   const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (session?.user) {
       setLoading(true);
       await fetchProfile(session.user);
@@ -105,30 +115,32 @@ export const AuthProvider = ({ children }) => {
 
     // Listen to tab visibility changes to re‑check session
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && mounted) {
+      if (document.visibilityState === "visible" && mounted) {
         checkSession();
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (mounted) {
-        if (session?.user) {
-          setLoading(true);
-          await fetchProfile(session.user);
-        } else {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (mounted) {
+          if (session?.user) {
+            setLoading(true);
+            await fetchProfile(session.user);
+          } else {
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+          }
         }
-      }
-    });
+      },
+    );
 
     checkSession();
 
     return () => {
       mounted = false;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       listener?.subscription.unsubscribe();
       clearTimeoutId();
     };
