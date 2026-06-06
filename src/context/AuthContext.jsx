@@ -64,21 +64,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      setLoading(true);
-      await fetchProfile(session.user, true);
-    } else {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     let mounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+      console.log('🔄 Auth State Changed:', event, session?.user?.email);
       if (session?.user) {
         let shouldShowLoading = false;
         setUser((currUser) => {
@@ -98,8 +89,6 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     });
-
-    checkSession();
 
     return () => {
       mounted = false;
