@@ -14,23 +14,13 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    const signInPromise = supabase.auth.signInWithPassword({ email, password });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Connection timeout. Please check if your network, VPN, or adblocker is blocking Supabase.')), 30000)
-    );
-
-    try {
-      const { error: signInError } = await Promise.race([signInPromise, timeoutPromise]);
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError(signInError.message);
+    } else {
+      navigate('/');
     }
+    setLoading(false);
   };
 
   return (
