@@ -8,34 +8,63 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  let timeoutId = null;
+
+  const clearTimeoutId = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const fetchProfile = async (authUser) => {
+    clearTimeoutId();
+    // Set a timeout to avoid infinite loading
+    timeoutId = setTimeout(() => {
+      console.warn('Profile fetch timeout – resetting loading');
+      setLoading(false);
+    }, 10000);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    clearTimeoutId();
+
+    if (!error && data?.user_type === 'admin') {
+      setUser(authUser);
+      setProfile(data);
+    } else {
+      setUser(null);
+      setProfile(null);
+    }
+    setLoading(false);
+  };
+
+  const checkSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setLoading(true);
+      await fetchProfile(session.user);
+    } else {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
-    const fetchProfile = async (authUser) => {
-      console.log('🔍 fetchProfile called for user ID:', authUser.id);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-      console.log('📦 Profile data:', data);
-      console.log('⚠️ Profile error:', error);
-      if (mounted) {
-        if (!error && data?.user_type === 'admin') {
-          console.log('✅ User is admin, setting user and profile');
-          setUser(authUser);
-          setProfile(data);
-        } else {
-          console.log('❌ User is NOT admin or profile missing');
-          setUser(null);
-          setProfile(null);
-        }
-        setLoading(false);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && mounted) {
+        checkSession();
       }
     };
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('🔄 Auth state changed, event:', _event, 'session:', session?.user?.email);
       if (mounted) {
         if (session?.user) {
           setLoading(true);
@@ -48,29 +77,17 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔎 Existing session:', session?.user?.email);
-      if (mounted) {
-        if (session?.user) {
-          setLoading(true);
-          await fetchProfile(session.user);
-        } else {
-          setLoading(false);
-        }
-      }
-    };
-
-    checkUser();
+    checkSession();
 
     return () => {
       mounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       listener?.subscription.unsubscribe();
+      clearTimeoutId();
     };
   }, []);
 
   const signOut = async () => {
-    console.log('🚪 Signing out');
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
