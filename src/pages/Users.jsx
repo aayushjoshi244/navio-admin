@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { getUsers, updateUserType, deleteUser, createUser } from '../lib/api';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -15,12 +15,15 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setUsers(data || []);
-    setLoading(false);
+    try {
+      const data = await getUsers();
+      setUsers(data || []);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load users: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
@@ -34,24 +37,23 @@ export default function Users() {
         return;
       }
     }
-    await supabase.from('profiles').update({ user_type: newType }).eq('id', id);
-    await fetchUsers();
+    try {
+      await updateUserType(id, newType);
+      await fetchUsers();
+    } catch (err) {
+      alert('Error updating user type: ' + err.message);
+    }
   };
 
-  const deleteUser = async (id, email) => {
+  const deleteUserHandler = async (id, email) => {
     if (!window.confirm(`Delete user ${email} permanently? This action cannot be undone.`)) return;
-    // First delete from profiles (if not cascade), then from auth.users
-    const { error: profileError } = await supabase.from('profiles').delete().eq('id', id);
-    if (profileError) {
-      alert('Error deleting profile: ' + profileError.message);
-      return;
+    try {
+      await deleteUser(id);
+      alert('User deleted successfully (if ON DELETE CASCADE is enabled, auth user also removed).');
+      await fetchUsers();
+    } catch (err) {
+      alert('Error deleting user: ' + err.message);
     }
-    // Call Supabase admin API to delete user from auth (requires service role key)
-    // Since we can't call admin API from client, we'll use a Supabase Edge Function or rely on cascade.
-    // Assuming foreign key ON DELETE CASCADE is set, deleting from profiles will also delete auth user.
-    // If not, we need to inform the admin to delete manually or set up cascade.
-    alert('User deleted from profiles. Auth user deletion requires manual action or ON DELETE CASCADE.');
-    await fetchUsers();
   };
 
   const handleAddUser = async () => {
@@ -60,37 +62,23 @@ export default function Users() {
       return;
     }
     setSaving(true);
-    // Create auth user
-    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    });
-    if (signUpError) {
-      alert('Error creating user: ' + signUpError.message);
+    try {
+      await createUser({
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.full_name,
+        phone: formData.phone,
+        user_type: formData.user_type,
+      });
+      alert('User created successfully.');
+      setModalOpen(false);
+      setFormData({ email: '', password: '', full_name: '', phone: '', user_type: 'user' });
+      await fetchUsers();
+    } catch (err) {
+      alert('Error creating user: ' + err.message);
+    } finally {
       setSaving(false);
-      return;
     }
-    if (user) {
-      // Insert profile
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          id: user.id,
-          full_name: formData.full_name,
-          phone: formData.phone,
-          user_type: formData.user_type,
-        },
-      ]);
-      if (profileError) {
-        alert('Profile creation failed: ' + profileError.message);
-        // Optionally delete the auth user if profile fails (requires admin API)
-      } else {
-        alert('User created successfully.');
-        setModalOpen(false);
-        setFormData({ email: '', password: '', full_name: '', phone: '', user_type: 'user' });
-        fetchUsers();
-      }
-    }
-    setSaving(false);
   };
 
   if (loading) return <div className="p-6">Loading users...</div>;
@@ -135,7 +123,7 @@ export default function Users() {
                   <option value="admin">Admin</option>
                 </select>
                 <button
-                  onClick={() => deleteUser(user.id, user.email)}
+                  onClick={() => deleteUserHandler(user.id, user.email)}
                   className="text-red-600 hover:text-red-800"
                 >
                   Delete

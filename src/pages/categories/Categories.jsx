@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { 
+  getCategories, 
+  createCategory, 
+  updateCategory, 
+  deleteCategory,
+  addTag,
+  deleteTag
+} from '../../lib/api';
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -15,11 +22,12 @@ export default function Categories() {
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
   const fetchCategories = async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*, tags(id, name)')
-      .order('name');
-    setCategories(data || []);
+    try {
+      const data = await getCategories(); // includes tags nested
+      setCategories(data || []);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => { fetchCategories(); }, []);
@@ -49,19 +57,21 @@ export default function Categories() {
         return;
       }
     }
-    const { error } = await supabase.from('categories').insert({
-      name: newName,
-      icon: '📌', // fallback emoji
-      image_url: imageUrl,
-      is_active: true,
-    });
-    if (error) alert(error.message);
-    else {
+    try {
+      await createCategory({
+        name: newName,
+        icon: '📌',
+        image_url: imageUrl,
+        is_active: true,
+      });
       setNewName('');
       setNewImage(null);
       await fetchCategories();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleUpdateCategory = async () => {
@@ -77,56 +87,61 @@ export default function Categories() {
         return;
       }
     }
-    const { error } = await supabase
-      .from('categories')
-      .update({ name: editingCategory.name, image_url: imageUrl })
-      .eq('id', editingCategory.id);
-    if (error) alert(error.message);
-    else {
+    try {
+      await updateCategory(editingCategory.id, {
+        name: editingCategory.name,
+        image_url: imageUrl,
+      });
       setEditingCategory(null);
       setEditImage(null);
       await fetchCategories();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const removeImage = async () => {
     if (!editingCategory) return;
-    const { error } = await supabase
-      .from('categories')
-      .update({ image_url: null })
-      .eq('id', editingCategory.id);
-    if (error) alert(error.message);
-    else {
+    try {
+      await updateCategory(editingCategory.id, { image_url: null });
       setEditingCategory({ ...editingCategory, image_url: null });
       await fetchCategories();
+    } catch (err) {
+      alert(err.message);
     }
   };
 
   const deleteCategory = async (id) => {
     if (window.confirm('Delete this category and all its tags?')) {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
-      if (error) alert(error.message);
-      else fetchCategories();
+      try {
+        await deleteCategory(id);
+        await fetchCategories();
+      } catch (err) {
+        alert(err.message);
+      }
     }
   };
 
   const addTag = async (categoryId) => {
     if (!newTag.trim()) return;
-    const { error } = await supabase
-      .from('tags')
-      .insert({ category_id: categoryId, name: newTag.trim() });
-    if (error) alert(error.message);
-    else {
+    try {
+      await addTag(categoryId, newTag.trim());
       setNewTag('');
-      fetchCategories();
+      await fetchCategories();
+    } catch (err) {
+      alert(err.message);
     }
   };
 
   const deleteTag = async (tagId) => {
-    const { error } = await supabase.from('tags').delete().eq('id', tagId);
-    if (error) alert(error.message);
-    else fetchCategories();
+    try {
+      await deleteTag(tagId);
+      await fetchCategories();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (

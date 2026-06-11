@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { getProfile } from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -8,101 +8,40 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  let timeoutId = null;
-
-  const clearTimeoutId = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
-    }
-  };
-
-  const fetchProfile = async (authUser, showLoading = true) => {
-    console.log('🔍 Fetching profile for:', authUser.id);
-    clearTimeoutId();
-    
-    // Safety timeout to avoid infinite loading if connection hangs (30 seconds)
-    timeoutId = setTimeout(() => {
-      console.warn('Profile fetch timeout – forcing loading=false');
-      setLoading(false);
-    }, 30000);
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      clearTimeoutId();
-
-      if (error) {
-        console.error('❌ Profile fetch error:', error);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      console.log('✅ Profile data:', data);
-      if (data?.user_type === 'admin') {
-        setUser(authUser);
-        setProfile(data);
-      } else {
-        console.warn('⚠️ User is not admin');
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error('Unexpected error in fetchProfile:', err);
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-    } finally {
-      clearTimeoutId();
-    }
-  };
-
   useEffect(() => {
-    let mounted = true;
+    const token = localStorage.getItem('admin_token');
+    console.log('🔍 AuthProvider: token exists?', !!token, 'token value:', token);
+    if (!token) {
+      console.log('❌ No token found, setting loading=false');
+      setLoading(false);
+      return;
+    }
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      console.log('🔄 Auth State Changed:', event, session?.user?.email);
-      if (session?.user) {
-        let shouldShowLoading = false;
-        setUser((currUser) => {
-          if (!currUser || currUser.id !== session.user.id) {
-            shouldShowLoading = true;
-          }
-          return currUser;
-        });
-
-        if (shouldShowLoading) {
-          setLoading(true);
+    console.log('🔄 Fetching profile...');
+    getProfile()
+      .then(data => {
+        console.log('✅ Profile data received:', data);
+        if (data && data.user_type === 'admin') {
+          setUser({ id: data.id, email: data.email });
+          setProfile(data);
+        } else {
+          console.warn('⚠️ Profile fetched but user is not admin:', data?.user_type);
+          localStorage.removeItem('admin_token');
         }
-        await fetchProfile(session.user, shouldShowLoading);
-      } else {
-        setUser(null);
-        setProfile(null);
+      })
+      .catch(err => {
+        console.error('❌ Profile fetch error:', err);
+        localStorage.removeItem('admin_token');
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener?.subscription.unsubscribe();
-      clearTimeoutId();
-    };
+      });
   }, []);
 
-  const signOut = async () => {
-    clearTimeoutId();
-    await supabase.auth.signOut();
+  const signOut = () => {
+    localStorage.removeItem('admin_token');
     setUser(null);
     setProfile(null);
-    setLoading(false);
   };
 
   return (

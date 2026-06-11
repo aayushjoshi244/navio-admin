@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import {login} from '../../lib/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,14 +13,15 @@ export default function Login() {
     event.preventDefault();
     setLoading(true);
     setError('');
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
-    } else {
+    try {
+      const { session } = await login(email, password);
+      localStorage.setItem('admin_token', session.access_token);
       navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally{
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

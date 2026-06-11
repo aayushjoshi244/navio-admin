@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { getUsers, getProviders, getCategories } from '../lib/api';
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const languageLabels = {
@@ -174,27 +174,14 @@ export default function Dashboard() {
       setLoading(true);
       setError('');
       try {
-        const [usersResult, providersResult, categoriesResult, tagsResult] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, user_type, created_at'),
-          supabase
-            .from('providers')
-            .select('id, business_name, owner_name, categories, category, is_approved, spoken_languages, city, province, created_at')
-            .order('created_at', { ascending: false }),
-          supabase.from('categories').select('id, name, image_url, is_active, created_at'),
-          supabase.from('tags').select('id, name, category_id'),
+        const [users, providers, categories] = await Promise.all([
+          getUsers(),
+          getProviders(),
+          getCategories(),
         ]);
-        const failed = [usersResult, providersResult, categoriesResult, tagsResult].find((res) => res.error);
-        if (failed) {
-          console.error('Fetch error:', failed.error);
-          setError(failed.error.message);
-        } else {
-          setRows({
-            users: usersResult.data || [],
-            providers: providersResult.data || [],
-            categories: categoriesResult.data || [],
-            tags: tagsResult.data || [],
-          });
-        }
+        // Flatten tags from categories
+        const tags = categories.flatMap(cat => cat.tags || []);
+        setRows({ users, providers, categories, tags });
       } catch (err) {
         console.error(err);
         setError(err.message || 'Unexpected error');

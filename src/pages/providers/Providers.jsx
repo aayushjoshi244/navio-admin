@@ -43,7 +43,7 @@ export default function Providers() {
   const cloudinaryApiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
   const cloudinaryApiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
 
-  // ---------- Cloudinary deletion helper using Web Crypto API ----------
+  // ---------- Cloudinary deletion helper (unchanged) ----------
   const deleteFromCloudinary = async (publicId, resourceType = "image") => {
     const timestamp = Math.floor(Date.now() / 1000);
     const signatureString = `public_id=${publicId}&timestamp=${timestamp}${cloudinaryApiSecret}`;
@@ -60,19 +60,16 @@ export default function Providers() {
     fd.append("signature", signature);
     fd.append("api_key", cloudinaryApiKey);
     const response = await fetch(url, { method: "POST", body: fd });
-    const result = await response.json(); // renamed to avoid conflict
+    const result = await response.json();
     if (!response.ok || result.result !== "ok") {
       console.error(`Failed to delete ${publicId}:`, result);
     }
   };
-  // ---------- Data fetching ----------
+
+  // ---------- Data fetching (using backend API) ----------
   const fetchProviders = async () => {
     try {
-      const { data, error } = await supabase
-        .from("providers")
-        .select("*, profiles(full_name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const data = await getProviders();
       setProviders(data || []);
     } catch (err) {
       console.error("Error fetching providers:", err);
@@ -83,46 +80,42 @@ export default function Providers() {
   };
 
   const fetchCategoriesAndTags = async () => {
-    const { data: categoriesData } = await supabase
-      .from("categories")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("name");
-    setAllCategories(categoriesData || []);
-
-    const { data: tagsData } = await supabase
-      .from("tags")
-      .select("id, name, category_id");
-    const grouped = {};
-    tagsData?.forEach((tag) => {
-      if (!grouped[tag.category_id]) grouped[tag.category_id] = [];
-      grouped[tag.category_id].push(tag);
-    });
-    setAllTagsByCategory(grouped);
+    try {
+      const categoriesData = await getCategoriesWithTags();
+      setAllCategories(categoriesData);
+      // Build tags by category id from the categories data (already includes tags array)
+      const grouped = {};
+      categoriesData.forEach((cat) => {
+        if (cat.tags && cat.tags.length) {
+          grouped[cat.id] = cat.tags;
+        }
+      });
+      setAllTagsByCategory(grouped);
+    } catch (err) {
+      console.error("Failed to fetch categories/tags:", err);
+    }
   };
 
-  // When viewing a provider, fetch tag names
+  // When viewing a provider, fetch tag names (still from API)
   useEffect(() => {
     if (selectedProvider?.tags?.length) {
-      const fetchTagNames = async () => {
-        const { data } = await supabase
-          .from("tags")
-          .select("name")
-          .in("id", selectedProvider.tags);
-        setViewTags(data?.map((t) => t.name) || []);
-      };
-      fetchTagNames();
+      // tags are stored as IDs; we need names. We could fetch from the tags table or rely on cached allTagsByCategory.
+      // Simpler: use the already loaded allTagsByCategory mapping.
+      const tagIds = selectedProvider.tags;
+      const allTags = Object.values(allTagsByCategory).flat();
+      const tagNames = allTags.filter(t => tagIds.includes(t.id)).map(t => t.name);
+      setViewTags(tagNames);
     } else {
       setViewTags([]);
     }
-  }, [selectedProvider]);
+  }, [selectedProvider, allTagsByCategory]);
 
   useEffect(() => {
     fetchProviders();
     fetchCategoriesAndTags();
   }, []);
 
-  // ---------- Modal handlers ----------
+  // ---------- Modal handlers (unchanged) ----------
   const openCreateModal = () => {
     setEditingProvider(null);
     setFormData({
@@ -204,7 +197,7 @@ export default function Providers() {
     if (current.includes(lang)) {
       handleChange(
         "spoken_languages",
-        current.filter((l) => l !== lang),
+        current.filter((l) => l !== lang)
       );
     } else {
       handleChange("spoken_languages", [...current, lang]);
@@ -216,14 +209,14 @@ export default function Providers() {
     if (current.includes(tagId)) {
       handleChange(
         "tags",
-        current.filter((id) => id !== tagId),
+        current.filter((id) => id !== tagId)
       );
     } else {
       handleChange("tags", [...current, tagId]);
     }
   };
 
-  // ---------- Cloudinary upload helpers ----------
+  // ---------- Cloudinary upload helpers (unchanged) ----------
   const uploadToCloudinary = async (file, resourceType = "image") => {
     const fd = new FormData();
     fd.append("file", file);
@@ -288,16 +281,15 @@ export default function Providers() {
     handleChange("videos", newVideos);
   };
 
-  // ---------- Save provider (with Cloudinary cleanup on edit) ----------
+  // ---------- Save provider (using backend API) ----------
   const saveProvider = async () => {
     setSaving(true);
 
     if (editingProvider) {
+      // Delete Cloudinary assets that were removed during edit
       const oldImages = editingProvider.images || [];
       const newImages = formData.images || [];
-      const removedImages = oldImages.filter(
-        (oldUrl) => !newImages.includes(oldUrl),
-      );
+      const removedImages = oldImages.filter((oldUrl) => !newImages.includes(oldUrl));
       for (const url of removedImages) {
         const publicId = url.split("/upload/")[1]?.split(".")[0];
         if (publicId) await deleteFromCloudinary(publicId, "image");
@@ -305,9 +297,7 @@ export default function Providers() {
 
       const oldVideos = editingProvider.videos || [];
       const newVideos = formData.videos || [];
-      const removedVideos = oldVideos.filter(
-        (oldUrl) => !newVideos.includes(oldUrl),
-      );
+      const removedVideos = oldVideos.filter((oldUrl) => !newVideos.includes(oldUrl));
       for (const url of removedVideos) {
         const publicId = url.split("/upload/")[1]?.split(".")[0];
         if (publicId) await deleteFromCloudinary(publicId, "video");
@@ -345,45 +335,27 @@ export default function Providers() {
       images: formData.images,
       videos: formData.videos,
     };
-    let error;
-    if (editingProvider) {
-      const { error: updateError } = await supabase
-        .from("providers")
-        .update(payload)
-        .eq("id", editingProvider.id);
-      error = updateError;
-    } else {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        alert("You must be logged in to create a provider.");
-        setSaving(false);
-        return;
+
+    try {
+      if (editingProvider) {
+        await updateProvider(editingProvider.id, payload);
+      } else {
+        await createProvider(payload);
       }
-      const { error: insertError } = await supabase.from("providers").insert({
-        ...payload,
-        user_id: user.id,
-      });
-      error = insertError;
-    }
-    if (error) {
-      alert("Error saving provider: " + error.message);
-    } else {
       setModalOpen(false);
       fetchProviders();
+    } catch (err) {
+      alert("Error saving provider: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  // ---------- Delete provider (and its Cloudinary assets) ----------
-  const deleteProvider = async (id) => {
+  // ---------- Delete provider (backend API + Cloudinary cleanup) ----------
+  const deleteProviderHandler = async (id) => {
     if (window.confirm("Delete this provider permanently?")) {
-      const { data: provider } = await supabase
-        .from("providers")
-        .select("images, videos")
-        .eq("id", id)
-        .single();
+      // First fetch the provider's media URLs (we already have it in state, but we can rely on the provider object passed)
+      const provider = providers.find(p => p.id === id);
       if (provider) {
         for (const url of provider.images || []) {
           const publicId = url.split("/upload/")[1]?.split(".")[0];
@@ -394,9 +366,12 @@ export default function Providers() {
           if (publicId) await deleteFromCloudinary(publicId, "video");
         }
       }
-      const { error } = await supabase.from("providers").delete().eq("id", id);
-      if (error) alert(error.message);
-      else fetchProviders();
+      try {
+        await deleteProvider(id);
+        fetchProviders();
+      } catch (err) {
+        alert("Error deleting provider: " + err.message);
+      }
     }
   };
 
@@ -404,7 +379,7 @@ export default function Providers() {
 
   // Filtered categories for search
   const filteredCategories = allCategories.filter((cat) =>
-    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()),
+    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
 
   return (
