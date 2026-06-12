@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import {
+  getProviders,
+  createProvider,
+  updateProvider,
+  deleteProvider,
+  getCategories,
+} from "../../lib/api";
 
 export default function Providers() {
   const [providers, setProviders] = useState([]);
@@ -81,7 +87,7 @@ export default function Providers() {
 
   const fetchCategoriesAndTags = async () => {
     try {
-      const categoriesData = await getCategoriesWithTags();
+      const categoriesData = await getCategories();
       setAllCategories(categoriesData);
       // Build tags by category id from the categories data (already includes tags array)
       const grouped = {};
@@ -99,8 +105,6 @@ export default function Providers() {
   // When viewing a provider, fetch tag names (still from API)
   useEffect(() => {
     if (selectedProvider?.tags?.length) {
-      // tags are stored as IDs; we need names. We could fetch from the tags table or rely on cached allTagsByCategory.
-      // Simpler: use the already loaded allTagsByCategory mapping.
       const tagIds = selectedProvider.tags;
       const allTags = Object.values(allTagsByCategory).flat();
       const tagNames = allTags.filter(t => tagIds.includes(t.id)).map(t => t.name);
@@ -354,7 +358,6 @@ export default function Providers() {
   // ---------- Delete provider (backend API + Cloudinary cleanup) ----------
   const deleteProviderHandler = async (id) => {
     if (window.confirm("Delete this provider permanently?")) {
-      // First fetch the provider's media URLs (we already have it in state, but we can rely on the provider object passed)
       const provider = providers.find(p => p.id === id);
       if (provider) {
         for (const url of provider.images || []) {
@@ -382,6 +385,9 @@ export default function Providers() {
     cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
 
+  // ----------------------------------------------------------------------
+  // JSX (same as your original – keep exactly as you had it)
+  // ----------------------------------------------------------------------
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -445,7 +451,7 @@ export default function Providers() {
                     Edit
                   </button>
                   <button
-                    onClick={() => deleteProvider(provider.id)}
+                    onClick={() => deleteProviderHandler(provider.id)}
                     className="text-red-600"
                   >
                     Delete
@@ -457,7 +463,7 @@ export default function Providers() {
         </table>
       )}
 
-      {/* Full‑screen Create/Edit Modal */}
+      {/* Full‑screen Create/Edit Modal (keep your existing modal JSX) */}
       {modalOpen && (
         <div className="provider-editor fixed inset-0 z-50 overflow-y-auto bg-[#10142a] text-slate-100">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
