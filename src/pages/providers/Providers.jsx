@@ -16,7 +16,7 @@ export default function Providers() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [viewTags, setViewTags] = useState([]);
-  const [groupedTags, setGroupedTags] = useState({}); // category -> array of tag names
+  const [groupedTags, setGroupedTags] = useState({});
   const [editingProvider, setEditingProvider] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [categorySearchTerm, setCategorySearchTerm] = useState("");
@@ -102,7 +102,7 @@ export default function Providers() {
     }
   };
 
-  // When viewing a provider, compute flat list of tag names (for simple list) and grouped tags (for category-wise display)
+  // When viewing a provider, compute flat list of tag names
   useEffect(() => {
     if (selectedProvider?.tags?.length) {
       const tagIds = selectedProvider.tags;
@@ -125,11 +125,7 @@ export default function Providers() {
           const matched = allTagsByCategory[cat.id]
             .filter(tag => selectedTagIds.includes(tag.id))
             .map(tag => tag.name);
-          if (matched.length) {
-            map[catName] = matched;
-          } else {
-            map[catName] = [];
-          }
+          map[catName] = matched;
         } else {
           map[catName] = [];
         }
@@ -409,9 +405,6 @@ export default function Providers() {
     cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
 
-  // ----------------------------------------------------------------------
-  // JSX (unchanged except for the view modal)
-  // ----------------------------------------------------------------------
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -612,7 +605,6 @@ export default function Providers() {
                             checked={isSelected}
                             onChange={() => {
                               if (isSelected) {
-                                // Remove category and its tags
                                 handleChange(
                                   "selectedCategories",
                                   formData.selectedCategories.filter(
@@ -847,7 +839,7 @@ export default function Providers() {
         </div>
       )}
 
-      {/* View Details Modal – updated to show categories with their tags */}
+      {/* View Details Modal – hierarchical categories & tags */}
       {viewModalOpen && selectedProvider && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-[#151936] text-slate-100 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/10 shadow-2xl shadow-black/40">
@@ -903,21 +895,25 @@ export default function Providers() {
                 </span>
               </div>
 
-              {/* Categories & Tags – grouped by category */}
+              {/* Hierarchical Categories & Tags */}
               <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-2">
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Categories & Tags</span>
-                <div className="mt-2 space-y-2">
+                <div className="mt-2 space-y-3">
                   {selectedProvider.categories?.length ? (
                     selectedProvider.categories.map(catName => (
-                      <div key={catName}>
-                        <div className="font-semibold text-white text-sm">{catName}</div>
-                        <div className="flex flex-wrap gap-1.5 mt-1 ml-2">
+                      <div key={catName} className="rounded-md bg-slate-800/40 p-2">
+                        <div className="font-semibold text-white text-sm border-l-2 border-cyan-400 pl-2">
+                          {catName}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-2 ml-2">
                           {groupedTags[catName]?.length ? (
                             groupedTags[catName].map((tag, i) => (
-                              <span key={i} className="bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded text-xs font-semibold text-cyan-400">{tag}</span>
+                              <span key={i} className="bg-slate-700/70 border border-slate-600 px-2.5 py-0.5 rounded text-xs font-medium text-slate-300">
+                                {tag}
+                              </span>
                             ))
                           ) : (
-                            <span className="text-xs text-slate-500 italic">No tags selected</span>
+                            <span className="text-xs text-slate-500 italic ml-1">No tags selected</span>
                           )}
                         </div>
                       </div>
