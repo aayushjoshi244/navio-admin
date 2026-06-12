@@ -16,6 +16,7 @@ export default function Providers() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [viewTags, setViewTags] = useState([]);
+  const [groupedTags, setGroupedTags] = useState({}); // category -> array of tag names
   const [editingProvider, setEditingProvider] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [categorySearchTerm, setCategorySearchTerm] = useState("");
@@ -49,7 +50,7 @@ export default function Providers() {
   const cloudinaryApiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
   const cloudinaryApiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
 
-  // ---------- Cloudinary deletion helper (unchanged) ----------
+  // ---------- Cloudinary deletion helper ----------
   const deleteFromCloudinary = async (publicId, resourceType = "image") => {
     const timestamp = Math.floor(Date.now() / 1000);
     const signatureString = `public_id=${publicId}&timestamp=${timestamp}${cloudinaryApiSecret}`;
@@ -72,7 +73,7 @@ export default function Providers() {
     }
   };
 
-  // ---------- Data fetching (using backend API) ----------
+  // ---------- Data fetching ----------
   const fetchProviders = async () => {
     try {
       const data = await getProviders();
@@ -89,7 +90,6 @@ export default function Providers() {
     try {
       const categoriesData = await getCategories();
       setAllCategories(categoriesData);
-      // Build tags by category id from the categories data (already includes tags array)
       const grouped = {};
       categoriesData.forEach((cat) => {
         if (cat.tags && cat.tags.length) {
@@ -102,7 +102,7 @@ export default function Providers() {
     }
   };
 
-  // When viewing a provider, fetch tag names (still from API)
+  // When viewing a provider, compute flat list of tag names (for simple list) and grouped tags (for category-wise display)
   useEffect(() => {
     if (selectedProvider?.tags?.length) {
       const tagIds = selectedProvider.tags;
@@ -114,12 +114,38 @@ export default function Providers() {
     }
   }, [selectedProvider, allTagsByCategory]);
 
+  // Compute grouped tags (category -> list of tag names) for view modal
+  useEffect(() => {
+    if (selectedProvider?.categories?.length && allTagsByCategory && allCategories.length) {
+      const map = {};
+      for (const catName of selectedProvider.categories) {
+        const cat = allCategories.find(c => c.name === catName);
+        if (cat && allTagsByCategory[cat.id]) {
+          const selectedTagIds = selectedProvider.tags || [];
+          const matched = allTagsByCategory[cat.id]
+            .filter(tag => selectedTagIds.includes(tag.id))
+            .map(tag => tag.name);
+          if (matched.length) {
+            map[catName] = matched;
+          } else {
+            map[catName] = [];
+          }
+        } else {
+          map[catName] = [];
+        }
+      }
+      setGroupedTags(map);
+    } else {
+      setGroupedTags({});
+    }
+  }, [selectedProvider, allTagsByCategory, allCategories]);
+
   useEffect(() => {
     fetchProviders();
     fetchCategoriesAndTags();
   }, []);
 
-  // ---------- Modal handlers (unchanged) ----------
+  // ---------- Modal handlers ----------
   const openCreateModal = () => {
     setEditingProvider(null);
     setFormData({
@@ -220,7 +246,7 @@ export default function Providers() {
     }
   };
 
-  // ---------- Cloudinary upload helpers (unchanged) ----------
+  // ---------- Cloudinary upload helpers ----------
   const uploadToCloudinary = async (file, resourceType = "image") => {
     const fd = new FormData();
     fd.append("file", file);
@@ -285,12 +311,11 @@ export default function Providers() {
     handleChange("videos", newVideos);
   };
 
-  // ---------- Save provider (using backend API) ----------
+  // ---------- Save provider ----------
   const saveProvider = async () => {
     setSaving(true);
 
     if (editingProvider) {
-      // Delete Cloudinary assets that were removed during edit
       const oldImages = editingProvider.images || [];
       const newImages = formData.images || [];
       const removedImages = oldImages.filter((oldUrl) => !newImages.includes(oldUrl));
@@ -355,7 +380,7 @@ export default function Providers() {
     }
   };
 
-  // ---------- Delete provider (backend API + Cloudinary cleanup) ----------
+  // ---------- Delete provider ----------
   const deleteProviderHandler = async (id) => {
     if (window.confirm("Delete this provider permanently?")) {
       const provider = providers.find(p => p.id === id);
@@ -380,13 +405,12 @@ export default function Providers() {
 
   if (loading) return <div className="p-6">Loading providers...</div>;
 
-  // Filtered categories for search
   const filteredCategories = allCategories.filter((cat) =>
     cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
 
   // ----------------------------------------------------------------------
-  // JSX (same as your original – keep exactly as you had it)
+  // JSX (unchanged except for the view modal)
   // ----------------------------------------------------------------------
   return (
     <div className="p-6">
@@ -463,7 +487,7 @@ export default function Providers() {
         </table>
       )}
 
-      {/* Full‑screen Create/Edit Modal (keep your existing modal JSX) */}
+      {/* Full‑screen Create/Edit Modal – unchanged */}
       {modalOpen && (
         <div className="provider-editor fixed inset-0 z-50 overflow-y-auto bg-[#10142a] text-slate-100">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
@@ -823,12 +847,12 @@ export default function Providers() {
         </div>
       )}
 
-      {/* View Details Modal */}
+      {/* View Details Modal – updated to show categories with their tags */}
       {viewModalOpen && selectedProvider && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-[#151936] text-slate-100 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/10 shadow-2xl shadow-black/40">
             <div className="flex justify-between items-center mb-5 border-b border-white/5 pb-3">
-              <h2 className="text-lg font-black text-white uppercase tracking-wide">Provider Specifications</h2>
+              <h2 className="text-lg font-bold text-white uppercase tracking-wide">Provider Specifications</h2>
               <button
                 onClick={() => setViewModalOpen(false)}
                 className="text-slate-400 hover:text-white transition text-lg font-bold"
@@ -846,7 +870,7 @@ export default function Providers() {
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Owner Name</span>
                 <span className="text-sm font-bold text-slate-200 mt-1 block">{selectedProvider.owner_name || selectedProvider.profiles?.full_name || 'N/A'}</span>
               </div>
-              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-2">
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Description</span>
                 <span className="text-sm text-slate-300 mt-1 block leading-relaxed whitespace-pre-wrap">{selectedProvider.description || 'No description provided'}</span>
               </div>
@@ -869,12 +893,6 @@ export default function Providers() {
                 </span>
               </div>
               <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
-                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Categories</span>
-                <span className="text-sm text-slate-200 mt-1 block">
-                  {(selectedProvider.categories || [selectedProvider.category].filter(Boolean)).join(', ') || 'N/A'}
-                </span>
-              </div>
-              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Price Range / Status</span>
                 <span className="text-sm text-slate-200 mt-1 flex items-center gap-2">
                   <span className="font-bold text-cyan-400">{selectedProvider.price_range || '$$'}</span>
@@ -884,15 +902,32 @@ export default function Providers() {
                   </span>
                 </span>
               </div>
-              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
-                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Tags (Sub-Categories)</span>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {viewTags.map((t, i) => (
-                    <span key={i} className="bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded text-xs font-semibold text-cyan-400">{t}</span>
-                  ))}
-                  {!viewTags.length && <span className="text-xs text-slate-500 italic">No tags associated</span>}
+
+              {/* Categories & Tags – grouped by category */}
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-2">
+                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Categories & Tags</span>
+                <div className="mt-2 space-y-2">
+                  {selectedProvider.categories?.length ? (
+                    selectedProvider.categories.map(catName => (
+                      <div key={catName}>
+                        <div className="font-semibold text-white text-sm">{catName}</div>
+                        <div className="flex flex-wrap gap-1.5 mt-1 ml-2">
+                          {groupedTags[catName]?.length ? (
+                            groupedTags[catName].map((tag, i) => (
+                              <span key={i} className="bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded text-xs font-semibold text-cyan-400">{tag}</span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-500 italic">No tags selected</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-200">No categories selected</span>
+                  )}
                 </div>
               </div>
+
               <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg">
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Contact Number</span>
                 <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.contact_number || 'N/A'}</span>
@@ -901,7 +936,7 @@ export default function Providers() {
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">WhatsApp Number</span>
                 <span className="text-sm text-slate-200 mt-1 block">{selectedProvider.whatsapp_number || 'N/A'}</span>
               </div>
-              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-1 md:col-span-2">
+              <div className="bg-[#1b2046]/50 border border-white/5 p-3 rounded-lg col-span-2">
                 <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider">Website URL</span>
                 {selectedProvider.website ? (
                   <a href={selectedProvider.website} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:underline mt-1 block break-all font-semibold">
